@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import time
+
 try:
     import json
 except ImportError:
@@ -131,11 +133,15 @@ def dumps(host='localhost', port=6379, password=None, db=0, pretty=False,
         kwargs['sort_keys'] = True
     encoder = json.JSONEncoder(**kwargs)
     table = {}
+    counter = 0
     for key, type, ttl, value in _reader(r, pretty, encoding, keys):
         table[key] = subd = {'type': type, 'value': value}
         if ttl is not None:
             subd['ttl'] = ttl
             subd['expireat'] = _time.time() + ttl
+        counter = (counter + 1) % 100
+        if counter == 0:
+            print("{0}: {1}".format(time.ctime(), counter))
     return encoder.encode(table)
 
 class BytesWriteWrapper(object):
@@ -170,6 +176,8 @@ def dump(fp, host='localhost', port=6379, password=None, db=0, pretty=False,
     encoder = json.JSONEncoder(**kwargs)
     fp.write('{')
     first = True
+    counter = 0
+    print("{0}: {1}".format(time.ctime(), counter))
     for key, type, ttl, value in _reader(r, pretty, encoding, keys):
         key = encoder.encode(key)
         type = encoder.encode(type)
@@ -186,6 +194,9 @@ def dump(fp, host='localhost', port=6379, password=None, db=0, pretty=False,
         else:
             fp.write(',')
         fp.write(item)
+        counter = counter + 1
+        if counter % 50 == 0:
+            print("{0}: {1}".format(time.ctime(), counter))
     fp.write('}')
 
 class StringReader(object):
@@ -313,6 +324,7 @@ def loads(s, host='localhost', port=6379, password=None, db=0, empty=False,
     counter = 0
     for key in table:
         # Create pipeline:
+        print("{0}: {1}".format(time.ctime(), counter))
         if not counter:
             p = r.pipeline(transaction=False)
         item = table[key]
@@ -474,7 +486,7 @@ def _writer(r, p, key, type, value, ttl, expireat, use_expireat):
             p.sadd(key, element)
     elif type == 'zset':
         for element, score in value:
-            p.zadd(key, element, score)
+            p.zadd(key, {element: score})
     elif type == 'hash':
         p.hmset(key, value)
     else:
