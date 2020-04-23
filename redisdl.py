@@ -492,6 +492,9 @@ def _writer(r, p, key, type, value, ttl, expireat, use_expireat):
     else:
         raise UnknownTypeError("Unknown key type: %s" % type)
 
+    if ttl is not None and ttl < 0:
+        return
+
     if use_expireat:
         if expireat is not None:
             r.pexpireat_or_expireat_pipeline(p, key, expireat)
